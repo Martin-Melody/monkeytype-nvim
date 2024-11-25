@@ -3,10 +3,25 @@ local M = {}
 M.config = {
 	quotes_file = vim.fn.stdpath("data") .. "/monkeytype-nvim/quotes.json",
 	test_duration = 60, -- Typing test duration in seconds
+	keymaps = { -- Default keymaps
+		start_test = { mode = "n", lhs = "<leader>tt", desc = "Start Typing Test" },
+		show_stats = { mode = "n", lhs = "<leader>ts", desc = "Show Typing Stats" },
+	},
 }
 
+-- Setup function
 function M.setup(user_config)
 	M.config = vim.tbl_deep_extend("force", M.config, user_config or {})
+	M.set_keymaps()
+end
+
+-- Function to set keymaps
+function M.set_keymaps()
+	for action, map in pairs(M.config.keymaps) do
+		if M[action] then -- Only set keymaps for existing functions
+			vim.keymap.set(map.mode, map.lhs, M[action], { desc = map.desc })
+		end
+	end
 end
 
 local function load_quotes()
