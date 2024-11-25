@@ -1,15 +1,15 @@
 local M = {}
 
--- Load other modules
+-- Load modules
 local config = require("monkeytype.config")
-local keymaps = require("monkeytype.keymaps")
+local test = require("monkeytype.test")
 
 function M.setup(user_config)
-	-- Load user configuration
 	config.setup(user_config)
+end
 
-	-- Set up keymaps
-	keymaps.setup()
+function M.start()
+	test.start_test()
 end
 
 return M

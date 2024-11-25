@@ -2,101 +2,78 @@ local M = {}
 local config = require("monkeytype.config")
 local utils = require("monkeytype.utils")
 
--- Function to load quotes
-function M.load_quotes()
-	local user_file = config.config.user_quotes_file
-	local default_file = config.config.default_quotes_file
-
-	-- Check if the user's quotes file exists
-	local content = utils.read_file(user_file)
-	if content then
-		vim.notify("Using user's quotes file: " .. user_file, vim.log.levels.INFO)
-		return vim.json.decode(content)
-	end
-
-	-- Fallback to the plugin's default quotes file
-	content = utils.read_file(default_file)
-	if content then
-		vim.notify("Using default quotes file: " .. default_file, vim.log.levels.INFO)
-		return vim.json.decode(content)
-	end
-
-	vim.notify("No quotes file found! Please ensure a quotes file is available.", vim.log.levels.ERROR)
-	return {}
-end
-
--- Function to start the typing test
 function M.start_test()
-	local quotes = M.load_quotes()
+	-- Load quotes
+	local quotes = utils.load_quotes(config.config.user_quotes_file, config.config.default_quotes_file)
 	if #quotes == 0 then
 		vim.notify("No quotes available!", vim.log.levels.ERROR)
 		return
 	end
 
-	local quote = quotes[math.random(#quotes)]
-	vim.cmd("new")
-	vim.bo.buftype = "nofile"
-	vim.bo.bufhidden = "wipe"
-	vim.wo.wrap = true
-	vim.wo.relativenumber = false
-	vim.wo.number = false
+	-- Select a random quote
+	local quote = quotes[math.random(#quotes)].text
 
-	-- Set the quote as placeholder text
-	local placeholder = { quote.text }
-	vim.api.nvim_buf_set_lines(0, 0, -1, false, placeholder)
+	-- Create a floating window for the typing test
+	local buf = vim.api.nvim_create_buf(false, true)
+	local width = vim.o.columns
+	local height = vim.o.lines
+	local win = vim.api.nvim_open_win(buf, true, {
+		relative = "editor",
+		width = math.floor(width * 0.8),
+		height = math.floor(height * 0.3),
+		row = math.floor(height * 0.35),
+		col = math.floor(width * 0.1),
+		style = "minimal",
+		border = "rounded",
+	})
 
-	-- Highlight groups
-	vim.cmd("highlight TypingCorrect guifg=green gui=bold")
-	vim.cmd("highlight TypingIncorrect guifg=red gui=bold")
-	vim.cmd("highlight TypingPlaceholder guifg=gray gui=italic")
+	vim.api.nvim_buf_set_option(buf, "buftype", "nofile")
+	vim.api.nvim_buf_set_option(buf, "bufhidden", "wipe")
+	vim.api.nvim_buf_set_option(buf, "modifiable", false)
 
-	-- Apply placeholder highlight
-	vim.api.nvim_buf_add_highlight(0, -1, "TypingPlaceholder", 0, 0, -1)
+	-- Display the quote in the buffer
+	vim.api.nvim_buf_set_lines(buf, 0, -1, false, { quote })
 
-	-- State management
-	local user_input = {}
+	-- State variables
 	local cursor_pos = 0
 	local correct_chars = 0
 	local start_time = os.time()
 
-	-- Function to handle input
+	-- Highlights
+	vim.cmd("highlight TypingCorrect guifg=green gui=bold")
+	vim.cmd("highlight TypingIncorrect guifg=red gui=bold")
+
+	-- Handle typing
 	local function handle_input(key)
-		-- Get the expected character at the current position
-		local expected_char = quote.text:sub(cursor_pos + 1, cursor_pos + 1)
+		local expected_char = quote:sub(cursor_pos + 1, cursor_pos + 1)
 
-		-- Replace the placeholder with the user's input
-		if #key > 0 then
-			user_input[cursor_pos + 1] = key
-			vim.api.nvim_buf_set_text(0, 0, cursor_pos, 0, cursor_pos + 1, { key })
-		end
-
-		-- Highlight correct/incorrect characters
 		if key == expected_char then
 			correct_chars = correct_chars + 1
-			vim.api.nvim_buf_add_highlight(0, -1, "TypingCorrect", 0, cursor_pos, cursor_pos + 1)
+			vim.api.nvim_buf_add_highlight(buf, -1, "TypingCorrect", 0, cursor_pos, cursor_pos + 1)
 		else
-			vim.api.nvim_buf_add_highlight(0, -1, "TypingIncorrect", 0, cursor_pos, cursor_pos + 1)
+			vim.api.nvim_buf_add_highlight(buf, -1, "TypingIncorrect", 0, cursor_pos, cursor_pos + 1)
 		end
 
-		-- Move cursor forward
 		cursor_pos = cursor_pos + 1
 
-		-- End the test if all characters are typed
-		if cursor_pos == #quote.text then
+		-- End the test when the quote is fully typed
+		if cursor_pos >= #quote then
 			local elapsed = os.difftime(os.time(), start_time)
-			local wpm = math.floor((#vim.split(quote.text, "%s+") / (elapsed / 60)))
-			local accuracy = math.floor((correct_chars / #quote.text) * 100)
+			local wpm = math.floor((#vim.split(quote, "%s+") / (elapsed / 60)))
+			local accuracy = math.floor((correct_chars / #quote) * 100)
 
+			vim.api.nvim_win_close(win, true)
 			vim.notify(string.format("WPM: %d | Accuracy: %d%%", wpm, accuracy), vim.log.levels.INFO)
-			vim.cmd("stopinsert | q!")
 		end
 	end
 
-	-- Map all keys to handle_input in insert mode
-	vim.api.nvim_create_autocmd("InsertCharPre", {
-		buffer = 0,
-		callback = function(args)
-			handle_input(args.char)
+	-- Attach InsertCharPre event
+	vim.api.nvim_buf_attach(buf, false, {
+		on_lines = function()
+			return true
+		end,
+		on_key = function(_, key)
+			handle_input(key)
 		end,
 	})
 

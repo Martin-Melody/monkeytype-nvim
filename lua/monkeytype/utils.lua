@@ -1,13 +1,17 @@
 local M = {}
 
-function M.read_file(path)
-	local file = io.open(path, "r")
-	if not file then
-		return nil
+function M.load_quotes(user_file, default_file)
+	local file_path = vim.fn.expand(user_file)
+	if vim.fn.filereadable(file_path) == 1 then
+		return vim.json.decode(vim.fn.readfile(file_path, true))
 	end
-	local content = file:read("*a")
-	file:close()
-	return content
+
+	file_path = vim.fn.expand(default_file)
+	if vim.fn.filereadable(file_path) == 1 then
+		return vim.json.decode(vim.fn.readfile(file_path, true))
+	end
+
+	return {}
 end
 
 return M
