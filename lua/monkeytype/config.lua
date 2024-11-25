@@ -12,6 +12,7 @@ M.defaults = {
 }
 
 function M.setup(user_config)
+	-- Merge user-provided configuration with defaults
 	M.config = vim.tbl_deep_extend("force", M.defaults, user_config or {})
 end
 
