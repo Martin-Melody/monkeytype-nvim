@@ -52,7 +52,7 @@ function M.load_quotes()
 end
 
 function M.start_test()
-	local quotes = load_quotes()
+	local quotes = M.load_quotes()
 	if #quotes == 0 then
 		vim.notify("No quotes available!", vim.log.levels.ERROR)
 		return
