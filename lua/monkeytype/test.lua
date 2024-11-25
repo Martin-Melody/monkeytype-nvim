@@ -3,16 +3,25 @@ local config = require("monkeytype.config")
 local utils = require("monkeytype.utils")
 
 function M.load_quotes()
-	local quotes_file = config.config.quotes_file
+	local user_file = config.config.user_quotes_file
+	local default_file = config.config.default_quotes_file
 
-	-- Load quotes from the configured file
-	local content = utils.read_file(quotes_file)
+	-- Check if the user's quotes file exists
+	local content = utils.read_file(user_file)
 	if content then
+		vim.notify("Using user's quotes file: " .. user_file, vim.log.levels.INFO)
 		return vim.json.decode(content)
-	else
-		vim.notify("Quotes file not found. Using default quotes.", vim.log.levels.WARN)
-		return {}
 	end
+
+	-- Fallback to the plugin's default quotes file
+	content = utils.read_file(default_file)
+	if content then
+		vim.notify("Using default quotes file: " .. default_file, vim.log.levels.INFO)
+		return vim.json.decode(content)
+	end
+
+	vim.notify("No quotes file found! Please ensure a quotes file is available.", vim.log.levels.ERROR)
+	return {}
 end
 
 function M.start_test()
