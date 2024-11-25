@@ -9,6 +9,9 @@ M.config = {
 	},
 }
 
+-- Path to the default quotes file
+M.default_quotes_file = debug.getinfo(1).source:match("@?(.*/)") .. "quotes.json"
+
 -- Setup function
 function M.setup(user_config)
 	M.config = vim.tbl_deep_extend("force", M.config, user_config or {})
@@ -24,15 +27,28 @@ function M.set_keymaps()
 	end
 end
 
-local function load_quotes()
-	local file = io.open(M.config.quotes_file, "r")
-	if not file then
-		vim.notify("Quotes file not found!", vim.log.levels.ERROR)
+function M.load_quotes()
+	local quotes_file = M.config.quotes_file
+
+	-- Check if the user's quotes file exists
+	local user_quotes_file = io.open(vim.fn.expand(quotes_file), "r")
+	if user_quotes_file then
+		local content = user_quotes_file:read("*a")
+		user_quotes_file:close()
+		return vim.json.decode(content)
+	end
+
+	-- Fallback to the default quotes file
+	vim.notify("User quotes file not found. Using default quotes.", vim.log.levels.WARN)
+	local default_file = io.open(M.default_quotes_file, "r")
+	if not default_file then
+		vim.notify("Default quotes file is missing. Please reinstall the plugin.", vim.log.levels.ERROR)
 		return {}
 	end
-	local content = file:read("*a")
-	file:close()
-	return vim.json.decode(content)
+
+	local default_content = default_file:read("*a")
+	default_file:close()
+	return vim.json.decode(default_content)
 end
 
 function M.start_test()
