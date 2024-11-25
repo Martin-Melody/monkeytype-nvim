@@ -1,16 +1,25 @@
 local M = {}
 
+-- Function to load quotes
 function M.load_quotes(user_file, default_file)
-	local file_path = vim.fn.expand(user_file)
-	if vim.fn.filereadable(file_path) == 1 then
-		return vim.json.decode(vim.fn.readfile(file_path, true))
+	-- Validate input file paths
+	if type(user_file) ~= "string" or type(default_file) ~= "string" then
+		error("Expected string file paths for load_quotes function")
 	end
 
-	file_path = vim.fn.expand(default_file)
-	if vim.fn.filereadable(file_path) == 1 then
-		return vim.json.decode(vim.fn.readfile(file_path, true))
+	-- Check if the user's file exists and is readable
+	if vim.fn.filereadable(user_file) == 1 then
+		local content = vim.fn.readfile(user_file)
+		return vim.json.decode(table.concat(content, "\n"))
 	end
 
+	-- Check if the default file exists and is readable
+	if vim.fn.filereadable(default_file) == 1 then
+		local content = vim.fn.readfile(default_file)
+		return vim.json.decode(table.concat(content, "\n"))
+	end
+
+	-- No valid file found
 	return {}
 end
 

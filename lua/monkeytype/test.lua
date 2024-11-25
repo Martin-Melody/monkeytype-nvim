@@ -3,8 +3,12 @@ local config = require("monkeytype.config")
 local utils = require("monkeytype.utils")
 
 function M.start_test()
-	-- Load quotes
-	local quotes = utils.load_quotes(config.config.user_quotes_file, config.config.default_quotes_file)
+	-- Ensure the paths passed to load_quotes are strings
+	local user_file = config.config.user_quotes_file
+	local default_file = config.config.default_quotes_file
+
+	-- Load quotes from user file or default file
+	local quotes = utils.load_quotes(user_file, default_file)
 	if #quotes == 0 then
 		vim.notify("No quotes available!", vim.log.levels.ERROR)
 		return
@@ -68,12 +72,10 @@ function M.start_test()
 	end
 
 	-- Attach InsertCharPre event
-	vim.api.nvim_buf_attach(buf, false, {
-		on_lines = function()
-			return true
-		end,
-		on_key = function(_, key)
-			handle_input(key)
+	vim.api.nvim_create_autocmd("InsertCharPre", {
+		buffer = buf,
+		callback = function(args)
+			handle_input(args.char)
 		end,
 	})
 
