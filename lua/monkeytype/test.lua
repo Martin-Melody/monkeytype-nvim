@@ -33,10 +33,13 @@ function M.start_test()
 
 	vim.api.nvim_buf_set_option(buf, "buftype", "nofile")
 	vim.api.nvim_buf_set_option(buf, "bufhidden", "wipe")
-	vim.api.nvim_buf_set_option(buf, "modifiable", false)
+	vim.api.nvim_buf_set_option(buf, "modifiable", true) -- Make buffer modifiable initially
 
 	-- Display the quote in the buffer
 	vim.api.nvim_buf_set_lines(buf, 0, -1, false, { quote })
+
+	-- Make the buffer read-only after setting the quote
+	vim.api.nvim_buf_set_option(buf, "modifiable", false)
 
 	-- State variables
 	local cursor_pos = 0
@@ -51,12 +54,21 @@ function M.start_test()
 	local function handle_input(key)
 		local expected_char = quote:sub(cursor_pos + 1, cursor_pos + 1)
 
+		-- Temporarily allow modifications for updates
+		vim.api.nvim_buf_set_option(buf, "modifiable", true)
+
 		if key == expected_char then
 			correct_chars = correct_chars + 1
 			vim.api.nvim_buf_add_highlight(buf, -1, "TypingCorrect", 0, cursor_pos, cursor_pos + 1)
 		else
 			vim.api.nvim_buf_add_highlight(buf, -1, "TypingIncorrect", 0, cursor_pos, cursor_pos + 1)
 		end
+
+		-- Replace the placeholder character with the user's input
+		vim.api.nvim_buf_set_text(buf, 0, cursor_pos, 0, cursor_pos + 1, { key })
+
+		-- Revert to non-modifiable
+		vim.api.nvim_buf_set_option(buf, "modifiable", false)
 
 		cursor_pos = cursor_pos + 1
 
