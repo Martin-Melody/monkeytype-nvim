@@ -39,7 +39,7 @@ function M.start_test()
 	vim.wo.relativenumber = false
 	vim.wo.number = false
 
-	-- Display the quote text
+	-- Set the quote text
 	vim.api.nvim_buf_set_lines(0, 0, -1, false, { quote.text })
 
 	-- Highlight groups
@@ -51,34 +51,51 @@ function M.start_test()
 	local correct_chars = 0
 	local start_time = os.time()
 
-	-- Attach a key handler to capture typing
+	-- Function to handle typing
+	local function handle_input(key)
+		-- Get the current character in the quote
+		local expected_char = quote.text:sub(cursor_pos + 1, cursor_pos + 1)
+
+		if key == expected_char then
+			correct_chars = correct_chars + 1
+			vim.api.nvim_buf_add_highlight(0, -1, "TypingCorrect", 0, cursor_pos, cursor_pos + 1)
+		else
+			vim.api.nvim_buf_add_highlight(0, -1, "TypingIncorrect", 0, cursor_pos, cursor_pos + 1)
+		end
+
+		-- Move the cursor forward
+		cursor_pos = cursor_pos + 1
+
+		-- End the test if all characters are typed
+		if cursor_pos == #quote.text then
+			local elapsed = os.difftime(os.time(), start_time)
+			local wpm = math.floor((#vim.split(quote.text, "%s+") / (elapsed / 60)))
+			local accuracy = math.floor((correct_chars / #quote.text) * 100)
+
+			vim.notify(string.format("WPM: %d | Accuracy: %d%%", wpm, accuracy), vim.log.levels.INFO)
+			vim.cmd("stopinsert | q!")
+		end
+	end
+
+	-- Map all keys to handle_input in insert mode
+	vim.api.nvim_buf_set_keymap(
+		0,
+		"i",
+		"<BS>",
+		"<Cmd>lua vim.notify('Backspace is not allowed!', vim.log.levels.WARN)<CR>",
+		{}
+	)
 	vim.api.nvim_buf_attach(0, false, {
 		on_lines = function()
 			return true
 		end, -- Prevent line editing
-		on_key = function(_, key)
-			-- Get the current character in the quote
-			local expected_char = quote.text:sub(cursor_pos + 1, cursor_pos + 1)
+	})
 
-			if key == expected_char then
-				correct_chars = correct_chars + 1
-				vim.api.nvim_buf_add_highlight(0, -1, "TypingCorrect", 0, cursor_pos, cursor_pos + 1)
-			else
-				vim.api.nvim_buf_add_highlight(0, -1, "TypingIncorrect", 0, cursor_pos, cursor_pos + 1)
-			end
-
-			-- Move the cursor forward
-			cursor_pos = cursor_pos + 1
-
-			-- End the test if all characters are typed
-			if cursor_pos == #quote.text then
-				local elapsed = os.difftime(os.time(), start_time)
-				local wpm = math.floor((#vim.split(quote.text, "%s+") / (elapsed / 60)))
-				local accuracy = math.floor((correct_chars / #quote.text) * 100)
-
-				vim.notify(string.format("WPM: %d | Accuracy: %d%%", wpm, accuracy), vim.log.levels.INFO)
-				vim.cmd("stopinsert | q!")
-			end
+	-- Redirect input to handle_input
+	vim.api.nvim_create_autocmd("InsertCharPre", {
+		buffer = 0,
+		callback = function(args)
+			handle_input(args.char)
 		end,
 	})
 
